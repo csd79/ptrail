@@ -7,7 +7,7 @@
 (in-package "PTRAIL")
 (setf *independent-exe* t)
 (lw:deliver 'ptrail-start
-    "c:\\Users\\cselovszkid\\common-lisp\\ptrail\\ptrail_v0.46.exe"
+    "c:\\Users\\cselovszkid\\common-lisp\\ptrail\\ptrail_v0.47.exe"
     5
     :interface :capi
     :console :io
