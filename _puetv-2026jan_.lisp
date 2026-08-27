@@ -5,7 +5,7 @@
 ;;; hivatkozás szövegét, ha az érvényes :ID-ket már azonosítottuk.
 
 
-'(
+(
   (:id   :havi-ill-gyakornok
    :name "Havi illetmény"
    :meta (:code ("1P00")
@@ -321,7 +321,7 @@
 ;;; rövidített név és teljes név.
 
 
-'((:tv    "1puetv"
+((:tv    "1puetv"
    :short "Púétv."
    :full  "pedagógusok új életpályájáról szóló 2023. évi LII. törvény (a továbbiakban: Púétv.)")
     
@@ -352,4 +352,4 @@
 ;;; A hivatkozások megjelenítésének sorrendje a :META / :CODE érték alapján.
 
 
-'("1P00" "1116" "1114" "1113" "1115" "1125" "2587" "2598" "2800" "2586" "2034" "2035" "2036" "2037" "2028" "2026" "2029" "2027" "2030" "2031" "2032" "2033" "1100")
+("1P00" "1116" "1114" "1113" "1115" "1125" "2587" "2598" "2800" "2586" "2034" "2035" "2036" "2037" "2028" "2026" "2029" "2027" "2030" "2031" "2032" "2033" "1100")

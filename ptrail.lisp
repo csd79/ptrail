@@ -12,8 +12,12 @@
 (defparameter *independent-exe* nil)
 (defparameter *appdir* "ptrail")
 
-(defparameter *xls-tks-filename*  "TK vezetõk.xlsx")
-(defparameter *mod-start-default* "2026. január 1.") ;;; Ez a jelen dátum függvényében jeles dátumokra ugorhatna... jan1 sep1
+;(defparameter *xls-tks-filename*  "TK vezetõk.xlsx")
+(defparameter *xls-tks-filename*  "Aláírók.xlsx")
+(defparameter *tks-wsheet*        "TK")
+(defparameter *insts-wsheet*      "Intézmények")
+
+(defparameter *mod-start-default* "2026. szeptember 1.") ;;; Ez a jelen dátum függvényében jeles dátumokra ugorhatna... jan1 sep1
 
 (defparameter *cref-descriptions* (appfile "_puetv-2026jan_.lisp"))
 
@@ -253,6 +257,12 @@
       (xcref row column))))
 
 
+(defun insts-row (obj om column)
+  (let ((row (select-row-from obj :insts #'(lambda (row) (string= (xcref row "OM azonosító (A)") om)))))
+    (when row
+      (xcref row column))))
+
+
 (defun school-year-end (list)
   (destructuring-bind (year month &optional day)
       list
@@ -281,20 +291,6 @@
             (astring-upcase (first (str:words tk))))))
      ,#'(lambda (doc)
           (header doc 1 +wd-header-footer-first-page+)))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     
     ("Székhelye: $………………$^M"
      ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
@@ -537,12 +533,13 @@
                     (member :ter-illemeles-pednoks fees))
               ", a 2024/2025. tanítási évre vonatkozó teljesítményértékelésének eredményére"
               "")))))
-   
+    
     (,(format nil "$Havi illetmény:~C………………~CFt^MIlletmény összesen:~C………………~cFt$^M" #\tab #\tab #\tab #\tab)
      ,(vals-fn ((bd "Belépés dátuma") (hiv "Szerz.vége") (eila "Esélyteremtési illetményrészre"))
         :fees fees :obj obj
         (let* ((fees    (remove-incorrect-1125 fees obj))
-               (ordered (sort-fees fees cref::*puetv-b1b2b8b9-illetmenyelemek-current-sorrend*))
+;               (ordered (sort-fees fees cref::*puetv-b1b2b8b9-illetmenyelemek-current-sorrend*))
+               (ordered (sort-fees fees (get-state obj :code-order)))
                (total   0)
                (digest  (mapcar #'(lambda (fee)
                                     (destructuring-bind (&key code name sum measure end titl cstart) fee
@@ -551,7 +548,8 @@
                                       (append
                                        ;; Ill.e. megnevezés
                                           ;; CREF FORRÁS OBJ-BAN????
-                                       (list (fee-name code eila titl cref::*puetv-b1b2b8b9-illetmenyelemek-current*)
+;                                       (list (fee-name code eila titl cref::*puetv-b1b2b8b9-illetmenyelemek-current*)
+                                       (list (fee-name code eila titl (get-state obj :coderefs))
                                              ;; Összeg
                                              (currency sum))
                                        ;; Megállapítás idõszak kezdete:
@@ -607,23 +605,33 @@
           (push (format nil "Illetmény összesen:~C~a~CFt" #\tab (currency total) #\tab) lines)
           (apply #'concatenate 'string
                  (nreverse lines)))))
-
+    
+    ; GRR
     ("illetékes törvényszékhez.^M^M$………………$,"
-     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
-        (tks-row obj a "Helységnév")))
+;     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
+;        (tks-row obj a "Helységnév")))
+        (insts-row obj om "Intézmény székhelyének települése (U)")))
 
     ("Pénzügyileg ellenjegyzem.^M^M$………………$,"
      ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
         (tks-row obj a "Helységnév")))
         
+    ; GRR
     (,(format nil "^M~C$NÉV$~C" #\tab #\tab)
-     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
-        (tks-row obj a "TK ig")))
+;     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
+;        (tks-row obj a "TK ig")))
+        (insts-row obj om "Igazgató neve (Z)")))
 
-    ("$NÉV$^Mtankerületi igazgató^M"
-     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
-        (tks-row obj a "TK ig")))
-
+    ; GRR
+;    ("$NÉV$^Mtankerületi igazgató^M"
+    ("$NÉV$^Migazgató^M"
+;     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
+;        (tks-row obj a "TK ig")))
+        (insts-row obj om "Igazgató neve (Z)")))
+    
     (,(format nil "~C$NÉV$^M~Cgazdasági vezetõ^M" #\tab #\tab)
      ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
         (tks-row obj a "Gazdasági vez.")))
@@ -650,9 +658,13 @@
         (let ((tsz (tks-row obj a "Törzsszám")))
           (when tsz (round tsz)))))
 
-    (", képviseli: $………………$ tankerületi igazgató)"
-     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
-        (tks-row obj a "TK ig")))
+    ; GRR
+;    (", képviseli: $………………$ tankerületi igazgató)"
+    (", képviseli: $………………$ igazgató)"
+;     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
+;        (tks-row obj a "TK ig")))
+        (insts-row obj om "Igazgató neve (Z)")))
 
     (", másrészrõl $………………$ (szül"
      ,(vals-fn ((a "Név"))
@@ -712,26 +724,33 @@
                   (currency sum)
                   (sub->words sum)))))
 
-    (,(format nil "^M~C$………………$, 2025" #\tab)
-     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
-        (tks-row obj a "Helységnév")))
+    ; GRR
+    (,(format nil "^M~C$………………$, 2026" #\tab)
+;     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
+;        (tks-row obj a "Helységnév")))
+        (insts-row obj om "Intézmény székhelyének települése (U)")))
 
     (,(format nil "Pénzügyileg ellenjegyzem.^M^M~C$………………$" #\tab)
      ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
         (tks-row obj a "Helységnév")))
 
-    (,(format nil "~C$………………$~C………………^M~Ctankerületi igazgató" #\tab #\tab #\tab)
-     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
-        (tks-row obj a "Tk ig")))
+    ; GRR
+;    (,(format nil "~C$………………$~C………………^M~Ctankerületi igazgató" #\tab #\tab #\tab)
+    (,(format nil "~C$………………$~C………………^M~Cigazgató" #\tab #\tab #\tab)
+;     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
+;        (tks-row obj a "Tk ig")))
+        (insts-row obj om "Igazgató neve (Z)")))
 
     (,(format nil "$………………$^M~Cgazdasági vezetõ^M" #\tab)
      ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
         (tks-row obj a "Gazdasági vez.")))
     
-    (,(format nil "~C$NÉV$^M~Ctankerületi igazgató~Cmunkavállaló^M" #\tab #\tab #\tab)
+    (,(format nil "~C$NÉV$^M~Cigazgató~Cmunkavállaló^M" #\tab #\tab #\tab)
      ,(vals-fn ((a "Név"))
         (clean-name a)))
-
+    
     ("számára^M^M^M$………………$ Tankerületi Központnál "
      ,(vals-fn ((a "Vállalat hosszú megnevezése"))
         (astring-capitalize 
@@ -824,10 +843,30 @@
               (get-output-stream-string result))
             "<><><>"))))
 
+    ; GRR
     ("elfogadom.^M^M$………………$, elektronikus"
+;     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
+;        (tks-row obj a "Helységnév")))
+        (insts-row obj om "Intézmény székhelyének települése (U)")))
+
+    ; GRR
+    ("^M$igazgató$^M"
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
+        (insts-row obj om "Titulus")))
+
+    ; GRR
+    (,(format nil "^M~C$igazgató$~C" #\tab #\tab)
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
+        (insts-row obj om "Titulus")))
+
+    ("^M$gazdasági vezetõ$^M"
      ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
-        (tks-row obj a "Helységnév")))
+        (tks-row obj a "Gazdasági vez. titulus")))
+
     ))
+
+
 
 
 (defun text-template-target (temp)
@@ -843,7 +882,6 @@
 
 
 (defun fill-template (current xarray obj)
-;  (wg-msg "fill-template")
   (dolist (desc *t2*)
     (destructuring-bind (temp val-fn &optional range-fn)
         desc
@@ -882,31 +920,39 @@
                   (?'startingnumber pg-nums) 1                  ; Oldalszámozás kezdése 1-tõl (elsõ o. beleszámítva)
                   (?'differentfirstpageheaderfooter pg-setup) t ; Elsõ oldalon eltérõ fejléc/lábléc
                   (?'mirrormargins pg-setup) t)                 ; Tükörmargók
-            (cclet* ((head  (!'item (?'headers sect-trg) +wd-header-footer-primary+))
+#|            (cclet* ((head  (!'item (?'headers sect-trg) +wd-header-footer-primary+))
                      (headr (?'range head)))
               (setf (?'alignment (?'paragraphformat headr)) +wd-align-paragraph-center+
                     (?'name (?'font headr)) "Times New Roman"
-                    (?'size (?'font headr)) 12)))
-          t))))) ; Ez kell? Ugyis visszaadnánk az elõzõ SETF értékét!
+                    (?'size (?'font headr)) 12)))|#
+            (loop for i from 1 upto (?'count (?'sections doc)) doing
+                  (cclet* ((sect (!'item (?'sections doc) i)))
+                    (loop for j from 1 upto (?'count (?'headers sect)) doing
+                          (cclet* ((head (!'item (?'headers sect) j))
+                                   (headr (?'range head)))
+                            (setf ;(?'alignment (?'paragraphformat headr)) +wd-align-paragraph-center+
+                             (?'name (?'font headr)) "Times New Roman"
+                             (?'size (?'font headr)) 12)))))
+          t)))))); Ez kell? Ugyis visszaadnánk az elõzõ SETF értékét!
 
 
 ;;; Személyi kör feldolgozása, minden SZTSZ külön fájlba.
-(defun process-ps (obj tk-ps-only ps word)
+(defun process-ps (obj intf tk-ps-only ps word)
   ;; Iteráció SZTSZ-eken:
   (xadouniques (sztsz tk-ps-only "SZTSZ")
     (let* ((sztszp (round (parse-number sztsz)))
            (sztsz-only (xaselect tk-ps-only #'(lambda (row) (= (parse-number (xcref row "SZTSZ"))
                                                                sztszp))))
            (filename   (newfile (xarows sztsz-only 0) obj)))
-      (if filename
-        ;; Ha személyi körhöz van definiálva doctype:
-        (disp obj "SZTSZ: ~a~a~%" sztszp
-              (if (add-template obj word filename sztsz-only)
-                "  ok" "  HIBA!"))
-        ;; Ha személyi körhöz nincs definiálva doctype:
-        (disp obj "SZTSZ: ~a   kihagyva, a ~a személyi körhöz nincs dokumentumsablon.~%" sztszp ps))
-      (pstep obj)
-      (pabort obj))))
+      (with-slots ((s wax::text-stream)) intf
+        (if filename
+          ;; Ha személyi körhöz van definiálva doctype:
+          (format s "SZTSZ: ~a~a~%" sztszp
+                  (if (add-template obj word filename sztsz-only)
+                    "  ok" "  HIBA!"))
+          ;; Ha személyi körhöz nincs definiálva doctype:
+          (format s "SZTSZ: ~a   kihagyva, a ~a személyi körhöz nincs dokumentumsablon.~%" sztszp ps)))
+      (progress intf))))
 
 
 (defmessenger proc-error ((err))
@@ -914,32 +960,33 @@
   err)
 
 
-(defun process (obj)
+(defun process (obj args)
+  (declare (ignore args))
   (cclet* ((word (com:create-object :progid "Word.Application"))
            (tk-head "Vállalat hosszú megnevezése")
            (length (with-workbook (:open (get-state obj :query) :read-only t :wsvars (ws-query) :close t)
                      (length (xauniques (read-xarray (used-range ws-query)) "SZTSZ")))))
     ;; Progress bar
-    (with-progress-new ("Dokumentumok generálása" obj :limit length)
+    (with-progress-window (intf length obj :title "Dokumentumok generálása" :stream s)
       (catch 'proc-exit
         ;; Adatforrások betöltése
-        (dolist (key '(:main :tks :filenum :kir :prevrels))
+        (dolist (key '(:main :tks :insts :filenum :kir :prevrels))
           (let ((filename (source-filename obj key)))
             (when (string/= filename "")
-              (disp obj "Adatforrás betöltése: ~a~%" filename)
+              (format s "Adatforrás betöltése: ~a~%" filename)
               (load-data-source obj key)))) ;;;;;;;;;;;;;;;   :first-row :header-row !!!!!!!!!!!!
-        (disp obj "~%~%")
+        (format s "~%~%")
         (skippable (condition 'proc-exit (proc-error))
           ;; Iteráció TK-kon.
           (xadouniques  (tk (source-data obj :main) tk-head)
-            (disp obj "~%~a~%~a~%~a~%~%" (line 70 #\=) (astring-upcase tk) (line 70 #\=))
+            (format s "~%~a~%~a~%~a~%~%" (line 70 #\=) (astring-upcase tk) (line 70 #\=))
             ;; Iteráció személyi körökön.
             (let ((tk-only (xaselect (source-data obj :main) #'(lambda (row) (astring= (xcref row tk-head) tk)))))
               (xadouniques (ps tk-only "SZK")
-                (disp obj "~a személyi kör  ~a~%" ps (line (- 70 (+ (length ps) 15))))
+                (format s "~a személyi kör  ~a~%" ps (line (- 70 (+ (length ps) 15))))
                 ;; Személyi kör sorok.
                 (let ((tk-ps-only (xaselect tk-only #'(lambda (row) (astring= (xcref row "SZK") ps)))))
-                  (process-ps obj tk-ps-only ps word))))))))
+                  (process-ps obj intf tk-ps-only ps word))))))))
     (!'quit word)))
 
 
@@ -984,8 +1031,9 @@
     (load-state obj :package-name "PTRAIL")
     ;; Fõablak létrehozása
     (wg-window
-     "Kinevezés generáló 2026.01.01."
-     180
+     `(:title "Kinevezés generáló 2026.09.01."
+       :max-height 180
+       :best-width 650)
      
      "Dokumentumtípus választása"
      (wg-options
@@ -1088,23 +1136,24 @@
             (wg-msg "A dokumentumsablonok kiválasztott mappája érvénytelen!~%Kérem szíveskedjen azt a mappát kiválasztani, amelyik az \"Egyoldalú kinevezésmódosítások\", \"Kétoldalú kinevezésmódosítások\" és \"Kinevezések\" almappákat tartalmazza.")
             (unless *runningp*
               ;; Ha még nem fut, indítás.
-              (let ((*runningp* t))
+              (let ((*runningp* t)
+                    (tks-filename (namestring (merge-pathnames *xls-tks-filename*
+                                                               (get-state obj :doctemp-dir)))))
                 (wg-floating-message "Indítás ...")
                 ;; State mentése
                 (save-state obj)
                 ;; CREF meghatározás betöltése
-                (load-descriptives obj *cref-descriptions* :coderefs :codename :code-order)
+                (load-descriptives obj *cref-descriptions* :coderefs :codenames :code-order)
                 ;; Adatforrások felvétele.
                 (mapc #'(lambda (src var) (add-data-source obj src (get-state obj var)))
                       '(:main  :filenum      :kir      :prevrels)
                       '(:query :filenum-file :kir-file :prevrels-file))
-                (add-data-source obj :tks (namestring
-                                           (merge-pathnames *xls-tks-filename*
-                                                            (get-state obj :doctemp-dir))))
+                (add-data-source obj :tks tks-filename *tks-wsheet*)
+                (add-data-source obj :insts tks-filename *insts-wsheet*)
                 ;; Szkript végrehajtása.
-                (wax-execute obj :errorsink-on nil)
+                (wax-execute obj :errorsink-on t)
                 ;; Adatforrások eldobása.
-                (dolist (key '(:main :tks :filenum :kir :prevrels))
+                (dolist (key '(:main :tks :insts :filenum :kir :prevrels))
                   (remove-data-source obj key))))))))))
 
 

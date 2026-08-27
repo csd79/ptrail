@@ -5,5 +5,6 @@
 
 
 (defpackage #:ptrail
-  (:use #:cl #:ccom4 #:achar #:ccoffice #:wax)
+  (:use #:cl #:cl-ppcre #:local-time #:str #:utils #:ccom4 #:achar #:cref #:ccoffice #:wax)
+  (:shadowing-import-from #:str #:split)
   (:export #:ptrail-start))
