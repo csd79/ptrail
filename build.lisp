@@ -1,21 +1,21 @@
 ;;; -*- Mode: Common-Lisp; Author: denes.cselovszky@gmail.com -*- 
 
 (in-package "CL-USER")
-;(load "c:\\Users\\cselovszkid\\.lispworks")
-(load "c:\\Users\\csd79\\.lispworks")
+(load "c:\\Users\\cselovszkid\\.lispworks")
+;(load "c:\\Users\\csd79\\.lispworks")
 (asdf:load-system "ptrail")
 
 (in-package "PTRAIL")
 (setf *independent-exe* t)
 (lw:deliver 'ptrail-start
-;    "c:\\Users\\cselovszkid\\common-lisp\\ptrail\\ptrail_v0.47.exe"
-    "c:\\Users\\csd79\\common-lisp\\ptrail\\ptrail_v0.47.exe"
+    "c:\\Users\\cselovszkid\\common-lisp\\ptrail\\ptrail_v0.49.exe"
+;    "c:\\Users\\csd79\\common-lisp\\ptrail\\ptrail_v0.49.exe"
     5
     :interface :capi
     :console :io
     :multiprocessing t
-;    :icon-file "c:\\Users\\cselovszkid\\common-lisp\\wax\\img\\wax.ico"
-    :icon-file "c:\\Users\\csd79\\common-lisp\\wax\\img\\wax.ico"
+    :icon-file "c:\\Users\\cselovszkid\\common-lisp\\wax\\img\\wax.ico"
+;    :icon-file "c:\\Users\\csd79\\common-lisp\\wax\\img\\wax.ico"
     :keep-symbols '(*appdir* *independent-exe*)
     :packages-to-keep-externals '(ptrail wax ccoffice) ; fn-s called indirectly - wax might not be needed, try without it!
     :keep-package-manipulation t

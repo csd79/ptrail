@@ -12,14 +12,14 @@
 (defparameter *independent-exe* nil)
 (defparameter *appdir* "ptrail")
 
-;(defparameter *xls-tks-filename*  "TK vezetõk.xlsx")
 (defparameter *xls-tks-filename*  "Aláírók.xlsx")
 (defparameter *tks-wsheet*        "TK")
 (defparameter *insts-wsheet*      "Intézmények")
 
 (defparameter *mod-start-default* "2026. szeptember 1.") ;;; Ez a jelen dátum függvényében jeles dátumokra ugorhatna... jan1 sep1
 
-(defparameter *cref-descriptions* (appfile "_puetv-2026jan_.lisp"))
+;(defparameter *cref-descriptions* (appfile "_puetv-2026jan_.lisp"))
+(defparameter *cref-descriptions* "_puetv-2026jan_.lisp")
 
 
 ;;; ----------------------------------------------------------------------
@@ -180,10 +180,11 @@
 
 (defun correct-1125-p (fee obj)
   "Is starting date = 09.01. of the year indicated by MOD-START?"
-  (let* ((mod-start (parse-hudate (get-state obj :mod-start)))
+#|  (let* ((mod-start (parse-hudate (get-state obj :mod-start)))
          (correct-start (if (>= (second mod-start) 9)
                           (list (first mod-start) 9 1)
-                          (list (1- (first mod-start)) 9 1))))
+                          (list (1- (first mod-start)) 9 1))))|#
+  (let ((correct-start (list 2025 9 1)))
     ;; Ha Kinevezés, a kezdõdátumtól függ,
     (if (string= (get-state obj :doctype) "Kinevezések")
       (equal (excel-date (getf fee :cstart)) correct-start)
@@ -271,6 +272,12 @@
            (list (if (>= month 9) (1+ year) year)
                  8 31)))
       result)))
+
+
+(defun inst-leader-p (degree)
+  (let ((as-number (parse-number degree)))
+    (and (numberp as-number)
+         (member as-number '(3 5) :test #'=))))
 
 
 (defparameter *t2*
@@ -475,19 +482,6 @@
         (declare (ignore xarray))
         (get-state obj :mod-start)))
 
-#|    (" heti munkaidejére tekintettel – $………………$ alapján az alábbiak szerint állapítom meg.^M"
-     ,(vals-fn ((szk "SZK") (bes "Bérrendsz. csop név") (eila "Esélyteremtési illetményrészre")
-                (titl "CÍm")) :fees fees :obj obj :field "jogszabályi hivatkozás"
-        (let ((fees    (remove-incorrect-1125 fees obj))
-              (cref::*coderefs*  cref::*puetv-b1b2b8b9-illetmenyelemek-current*)
-              (cref::*codenames* cref::*puetv-megnevezes-current*)
-              (cref::*defined-tvs* (if (string= bes "Gyakornok")
-                                     '("1puetv" "2puetv-vhr")
-                                     '("1puetv"))))
-          (let* ((codes (mapcar #'(lambda (fee) (getf fee :code)) fees))
-                 (fees  (cref::fees :codes codes :ps szk :lab bes :eila eila :titl titl))
-                 (text  (cref::convert fees)))
-            text))))|#
     (" heti munkaidejére tekintettel – $………………$ alapján az alábbiak szerint állapítom meg.^M"
      ,(vals-fn ((szk "SZK") (bes "Bérrendsz. csop név") (eila "Esélyteremtési illetményrészre")
                 (titl "CÍm")) :fees fees :obj obj :field "jogszabályi hivatkozás"
@@ -502,31 +496,11 @@
                  (text  (cref::convert fees coderefs codenames defined-tvs)))
             text))))
 
-#|    ("napi hatállyal – besorolására$………………$ és"
-     ,(vals-fn ((szk "SZK") (bes "Bérrendsz. csop név") (eila "Esélyteremtési illetményrészre")
-                (titl "CÍm")) :fees fees :obj obj
-        (let ((fees (remove-incorrect-1125 fees obj))
-              (cref::*coderefs*  cref::*puetv-b1b2b8b9-illetmenyelemek-current*)
-              (cref::*codenames* cref::*puetv-megnevezes-current*)
-              (cref::*defined-tvs* (if (string= bes "Gyakornok")
-                                     '("1puetv" "2puetv-vhr")
-                                     '("1puetv"))))
-          (let* ((codes (mapcar #'(lambda (fee) (getf fee :code)) fees))
-                 (fees  (cref::fees :codes codes :ps szk :lab bes :eila eila :titl titl)))
-            (if (or (member :ter-illemeles-ped fees)
-                    (member :ter-illemeles-pednoks fees))
-              ", a 2024/2025. tanítási évre vonatkozó teljesítményértékelésének eredményére"
-              "")))))|#
     ("napi hatállyal – besorolására$………………$ és"
      ,(vals-fn ((szk "SZK") (bes "Bérrendsz. csop név") (eila "Esélyteremtési illetményrészre")
                 (titl "CÍm")) :fees fees :obj obj
         (let ((fees (remove-incorrect-1125 fees obj))
-              (coderefs (get-state obj :coderefs))
-;              (codenames cref::*puetv-megnevezes-current*)
-;              (defined-tvs (if (string= bes "Gyakornok")
-;                                     '("1puetv" "2puetv-vhr")
-;                                     '("1puetv"))))
-              )
+              (coderefs (get-state obj :coderefs)))
           (let* ((codes (mapcar #'(lambda (fee) (getf fee :code)) fees))
                  (fees  (cref::fees coderefs :codes codes :ps szk :lab bes :eila eila :titl titl)))
             (if (or (member :ter-illemeles-ped fees)
@@ -538,7 +512,6 @@
      ,(vals-fn ((bd "Belépés dátuma") (hiv "Szerz.vége") (eila "Esélyteremtési illetményrészre"))
         :fees fees :obj obj
         (let* ((fees    (remove-incorrect-1125 fees obj))
-;               (ordered (sort-fees fees cref::*puetv-b1b2b8b9-illetmenyelemek-current-sorrend*))
                (ordered (sort-fees fees (get-state obj :code-order)))
                (total   0)
                (digest  (mapcar #'(lambda (fee)
@@ -548,7 +521,6 @@
                                       (append
                                        ;; Ill.e. megnevezés
                                           ;; CREF FORRÁS OBJ-BAN????
-;                                       (list (fee-name code eila titl cref::*puetv-b1b2b8b9-illetmenyelemek-current*)
                                        (list (fee-name code eila titl (get-state obj :coderefs))
                                              ;; Összeg
                                              (currency sum))
@@ -607,30 +579,44 @@
                  (nreverse lines)))))
     
     ; GRR
-    ("illetékes törvényszékhez.^M^M$………………$,"
-;     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
+#|    ("illetékes törvényszékhez.^M^M$………………$,"
      ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
-;        (tks-row obj a "Helységnév")))
-        (insts-row obj om "Intézmény székhelyének települése (U)")))
+        (insts-row obj om "Intézmény székhelyének települése (U)")))|#
+    ("illetékes törvényszékhez.^M^M$………………$,"
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")
+                (tk "Vállalat hosszú megnevezése")
+                (d  "Vezetõi fok")) :obj obj
+        (if (inst-leader-p d)
+          (tks-row obj tk "Helységnév")
+          (insts-row obj om "Intézmény székhelyének települése (U)"))))
 
     ("Pénzügyileg ellenjegyzem.^M^M$………………$,"
      ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
         (tks-row obj a "Helységnév")))
         
     ; GRR
-    (,(format nil "^M~C$NÉV$~C" #\tab #\tab)
-;     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
+#|    (,(format nil "^M~C$NÉV$~C" #\tab #\tab)
      ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
-;        (tks-row obj a "TK ig")))
-        (insts-row obj om "Igazgató neve (Z)")))
+        (insts-row obj om "Igazgató neve (Z)")))|#
+    (,(format nil "^M~C$NÉV$~C" #\tab #\tab)
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")
+                (tk "Vállalat hosszú megnevezése")
+                (d  "Vezetõi fok")) :obj obj
+        (if (inst-leader-p d)
+          (tks-row obj tk "Tankerületi igazgató")
+          (insts-row obj om "Igazgató neve (Z)"))))
 
     ; GRR
-;    ("$NÉV$^Mtankerületi igazgató^M"
-    ("$NÉV$^Migazgató^M"
-;     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
+#|    ("$NÉV$^Migazgató^M"
      ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
-;        (tks-row obj a "TK ig")))
-        (insts-row obj om "Igazgató neve (Z)")))
+        (insts-row obj om "Igazgató neve (Z)")))|#
+    ("$NÉV$^Migazgató^M"  ;;; Amelyik munkaszerzõdésre megy az nem kell, mert elvileg csak ped lehet igazgató (?)
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")
+                (tk "Vállalat hosszú megnevezése")
+                (d  "Vezetõi fok")) :obj obj
+        (if (inst-leader-p d)
+          (tks-row obj tk "Tankerületi igazgató")
+          (insts-row obj om "Igazgató neve (Z)"))))
     
     (,(format nil "~C$NÉV$^M~Cgazdasági vezetõ^M" #\tab #\tab)
      ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
@@ -659,12 +645,18 @@
           (when tsz (round tsz)))))
 
     ; GRR
-;    (", képviseli: $………………$ tankerületi igazgató)"
-    (", képviseli: $………………$ igazgató)"
-;     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
+#|    (", képviseli: $………………$ igazgató)"
      ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
-;        (tks-row obj a "TK ig")))
-        (insts-row obj om "Igazgató neve (Z)")))
+        (insts-row obj om "Igazgató neve (Z)")))|#
+    (", képviseli: $……………… igazgató$)"
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")
+                (tk "Vállalat hosszú megnevezése")
+                (d  "Vezetõi fok")) :obj obj
+        (if (inst-leader-p d)
+          (concatenate 'string (tks-row obj tk "Tankerületi igazgató") " "
+                       (tks-row obj tk "Tankerületi igazgató titulus"))
+          (concatenate 'string (insts-row obj om "Igazgató neve (Z)") " "
+                       (insts-row obj om "Titulus")))))
 
     (", másrészrõl $………………$ (szül"
      ,(vals-fn ((a "Név"))
@@ -691,7 +683,7 @@
                 (c "Hely.dolg.neve.") (d "Szerz.vége"))
         (cond
          ;; Határozatlan ideju kinevezés/szerzõdés
-         ((member a '("Határozatlan id.kine" "Hatlan. ideju MT sz.") :test #'string=)
+         ((member a '("Határozatlan id.kine" "Hatlan. idejû MT sz.") :test #'string=)
           "határozatlan idejû")
          ;; Határozott ideju helyettesítõ
          ((notany #'empty-cell-p (list c d))
@@ -702,12 +694,13 @@
                     "………………")
                   ;; Szerzõdés vége
                   (excel-date-string d :words t)))
-         ;; Határozott ideju nem-helyettesítõ
+         ;; Határozott idejû nem-helyettesítõ
          ((not (empty-cell-p d))
           (format nil "határozott ideig, ~a napjáig tartó"
                   (excel-date-string d :words t)))
          ;; Nem meghatározható eset
-         (t "napjától $………………$ munkaviszony keretében"))))
+;         (t "napjától $………………$ munkaviszony keretében"))))
+         (t "………………"))))
     
     (,(format nil "^MMunkavégzés helye:~C$……………………………………………………$" #\tab)
      ,(vals-fn ((a "szervezeti egys hosszú megnev."))
@@ -725,23 +718,32 @@
                   (sub->words sum)))))
 
     ; GRR
-    (,(format nil "^M~C$………………$, 2026" #\tab)
-;     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
+#|    (,(format nil "^M~C$………………$, 2026" #\tab)
      ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
-;        (tks-row obj a "Helységnév")))
-        (insts-row obj om "Intézmény székhelyének települése (U)")))
+        (insts-row obj om "Intézmény székhelyének települése (U)")))|#
+    (,(format nil "^M~C$………………$, 2026" #\tab)
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")
+                (tk "Vállalat hosszú megnevezése")
+                (d  "Vezetõi fok")) :obj obj
+        (if (inst-leader-p d)
+          (tks-row obj tk "Helységnév")
+          (insts-row obj om "Intézmény székhelyének települése (U)"))))
 
     (,(format nil "Pénzügyileg ellenjegyzem.^M^M~C$………………$" #\tab)
      ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
         (tks-row obj a "Helységnév")))
 
     ; GRR
-;    (,(format nil "~C$………………$~C………………^M~Ctankerületi igazgató" #\tab #\tab #\tab)
-    (,(format nil "~C$………………$~C………………^M~Cigazgató" #\tab #\tab #\tab)
-;     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
+#|    (,(format nil "~C$………………$~C………………^M~Cigazgató" #\tab #\tab #\tab)
      ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
-;        (tks-row obj a "Tk ig")))
-        (insts-row obj om "Igazgató neve (Z)")))
+        (insts-row obj om "Igazgató neve (Z)")))|#
+    (,(format nil "~C$………………$~C………………^M~Cigazgató" #\tab #\tab #\tab)
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")
+                (tk "Vállalat hosszú megnevezése")
+                (d  "Vezetõi fok")) :obj obj
+        (if (inst-leader-p d)
+          (tks-row obj tk "Tankerületi igazgató")
+          (insts-row obj om "Igazgató neve (Z)"))))
 
     (,(format nil "$………………$^M~Cgazdasági vezetõ^M" #\tab)
      ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
@@ -844,21 +846,40 @@
             "<><><>"))))
 
     ; GRR
+#|    ("elfogadom.^M^M$………………$, elektronikus"
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
+        (insts-row obj om "Intézmény székhelyének települése (U)")))|#
     ("elfogadom.^M^M$………………$, elektronikus"
-;     ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
-     ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
-;        (tks-row obj a "Helységnév")))
-        (insts-row obj om "Intézmény székhelyének települése (U)")))
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")
+                (tk "Vállalat hosszú megnevezése")
+                (d  "Vezetõi fok")) :obj obj
+        (if (inst-leader-p d)
+          (tks-row obj tk "Helységnév")
+          (insts-row obj om "Intézmény székhelyének települése (U)"))))
 
     ; GRR
+#|    ("^M$igazgató$^M"
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
+        (insts-row obj om "Titulus")))|#
     ("^M$igazgató$^M"
-     ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
-        (insts-row obj om "Titulus")))
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")
+                (tk "Vállalat hosszú megnevezése")
+                (d  "Vezetõi fok")) :obj obj
+        (if (inst-leader-p d)
+          (tks-row obj tk "Tankerületi igazgató titulus")
+          (insts-row obj om "Titulus"))))
 
     ; GRR
-    (,(format nil "^M~C$igazgató$~C" #\tab #\tab)
+#|    (,(format nil "^M~C$igazgató$~C" #\tab #\tab)
      ,(vals-fn ((om "Szervezeti egység OM azonosító")) :obj obj
-        (insts-row obj om "Titulus")))
+        (insts-row obj om "Titulus")))|#
+    (,(format nil "^M~C$igazgató$~C" #\tab #\tab)
+     ,(vals-fn ((om "Szervezeti egység OM azonosító")
+                (tk "Vállalat hosszú megnevezése")
+                (d  "Vezetõi fok")) :obj obj
+        (if (inst-leader-p d)
+          (tks-row obj tk "Tankerületi igazgató titulus")
+          (insts-row obj om "Titulus"))))
 
     ("^M$gazdasági vezetõ$^M"
      ,(vals-fn ((a "Vállalat hosszú megnevezése")) :obj obj
@@ -915,24 +936,18 @@
                    (pg-nums  (?'pagenumbers pri-head))
                    (pg-setup (?'pagesetup sect-trg)))
             (setf (?'text (?'range pri-head)) "")               ; Meglévõ elsõdleges fejléc szövegének törlése
-            (!'add pg-nums +wd-align-page-number-center+ nil)   ; Oldalszámozás középre
-            (setf (?'restartnumberingatsection pg-nums) t       ; Oldalszámozás újrakezdése szakaszonként
-                  (?'startingnumber pg-nums) 1                  ; Oldalszámozás kezdése 1-tõl (elsõ o. beleszámítva)
+            (!'add pg-nums +wd-align-page-number-center+ nil)   ; Oldalszám középre
+            (setf (?'restartnumberingatsection pg-nums) t       ; Oldalszám újrakezdése szakaszonként
+                  (?'startingnumber pg-nums) 1                  ; Oldalszám kezdése 1-tõl (1.o. beleszámítva)
                   (?'differentfirstpageheaderfooter pg-setup) t ; Elsõ oldalon eltérõ fejléc/lábléc
                   (?'mirrormargins pg-setup) t)                 ; Tükörmargók
-#|            (cclet* ((head  (!'item (?'headers sect-trg) +wd-header-footer-primary+))
-                     (headr (?'range head)))
-              (setf (?'alignment (?'paragraphformat headr)) +wd-align-paragraph-center+
-                    (?'name (?'font headr)) "Times New Roman"
-                    (?'size (?'font headr)) 12)))|#
             (loop for i from 1 upto (?'count (?'sections doc)) doing
                   (cclet* ((sect (!'item (?'sections doc) i)))
                     (loop for j from 1 upto (?'count (?'headers sect)) doing
                           (cclet* ((head (!'item (?'headers sect) j))
                                    (headr (?'range head)))
-                            (setf ;(?'alignment (?'paragraphformat headr)) +wd-align-paragraph-center+
-                             (?'name (?'font headr)) "Times New Roman"
-                             (?'size (?'font headr)) 12)))))
+                            (setf (?'name (?'font headr)) "Times New Roman"
+                                  (?'size (?'font headr)) 12)))))
           t)))))); Ez kell? Ugyis visszaadnánk az elõzõ SETF értékét!
 
 
@@ -1085,10 +1100,7 @@
       *filereq-filter-xlsx*
       #'(lambda (text &rest rest)
           (declare (ignore rest))
-          (setf (get-state obj :filenum-file) text)
-;          (when (string= text "")
-;            (setf *fileno-data* nil))
-          )
+          (setf (get-state obj :filenum-file) text))
       (get-state obj :filenum-file)
       :cancel #'(lambda () (setf (get-state obj :filenum-file) ""
 ;                            *fileno-data* nil
@@ -1101,14 +1113,9 @@
       *filereq-filter-xlsx*
       #'(lambda (text &rest rest)
           (declare (ignore rest))
-          (setf (get-state obj :kir-file) text)
-;          (when (string= text "")
-;            (setf *kir-data* nil))
-          )
+          (setf (get-state obj :kir-file) text))
       (get-state obj :kir-file)
-      :cancel #'(lambda () (setf (get-state obj :kir-file) ""
-;                                 *kir-data* nil
-                                 )))
+      :cancel #'(lambda () (setf (get-state obj :kir-file) "")))
      
      "Dokumentumsablonok mappája";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
      (wg-dir-selector
@@ -1143,7 +1150,8 @@
                 ;; State mentése
                 (save-state obj)
                 ;; CREF meghatározás betöltése
-                (load-descriptives obj *cref-descriptions* :coderefs :codenames :code-order)
+;                (load-descriptives obj *cref-descriptions* :coderefs :codenames :code-order)
+                (load-descriptives obj (appfile *cref-descriptions*) :coderefs :codenames :code-order)
                 ;; Adatforrások felvétele.
                 (mapc #'(lambda (src var) (add-data-source obj src (get-state obj var)))
                       '(:main  :filenum      :kir      :prevrels)
